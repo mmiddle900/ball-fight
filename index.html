@@ -17,8 +17,8 @@ frang:{name:'프랑',hp:2000,color:'#64eaff',glow:'#bdf8ff',basic:'광탄 연사
 ark:{name:'아크 셸',hp:2500,color:'#ffb65d',glow:'#ffe5a8',skills:[['화염 휩쓸기','3초 준비. 반경 3칸 안의 적에게 G 피해를 3회 입힌다.'],['빛 투사','10초 쿨타임. 최대 15칸, 타일당 0.05초. 사용 후 3초 반사.'],['태양 파동','30초 쿨타임. 이동하며 3초 충전, 반경 5칸에 100+2×G 피해.'],['태양신','G≥60일 때 변신: 쿨타임 절반, G 2배, 초당 회복 2.']]}
 };
 function make(id,x,y){const initialCD=id==='frang'?[10,3,15,20,80]:[3,10,30,0,0];return {id,...defs[id],x,y,vx:(Math.random()<.5?-1:1)*6,vy:(Math.random()<.5?-1:1)*6,hp:defs[id].hp,max:defs[id].hp,g:0,cd:[...initialCD],phase:0,volley:0,reflect:0,dead:false};}
-let a,b;
-function reset(){a=make('frang',2.5,5);b=make('ark',7.5,5);running=false;matchOver=false;fx=[];shots=[];flashT=0;logs=[];document.getElementById('flash').textContent='준비 완료';draw();hud();log('전투 준비. 전투 시작을 누르세요.');}
+let a,b,skillLock=5;
+function reset(){a=make('frang',2.5,5);b=make('ark',7.5,5);running=false;matchOver=false;skillLock=5;fx=[];shots=[];flashT=0;logs=[];document.getElementById('flash').textContent='준비 완료';draw();hud();log('전투 준비. 전투 시작을 누르세요.');}
 function log(s){logs.unshift(s);logs=logs.slice(0,8);document.getElementById('log').innerHTML=logs.map(x=>'› '+x).join('<br>');}
 function beep(freq=500,d=.08){if(!sound)return;try{let ac=beep.ac||(beep.ac=new (window.AudioContext||window.webkitAudioContext)()),o=ac.createOscillator(),g=ac.createGain();o.frequency.value=freq;o.type='triangle';g.gain.setValueAtTime(.05,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch{}}
 function hit(target,damage,kind='hit'){if(target.dead)return;let real=target.reflect>0?0:damage;target.hp=Math.max(0,target.hp-real);fx.push({x:target.x,y:target.y,t:.45,kind,txt:real?'-'+Math.round(real):'반사'});flashT=.12;beep(kind==='beam'?900:350,.07);if(target.hp<=0){target.dead=true;running=false;matchOver=true;document.getElementById('flash').textContent=(target===a?b.name:a.name)+' 승리';log((target===a?b.name:a.name)+' 승리!');}}
@@ -37,12 +37,12 @@ if(idx===1){p.cd[1]=10;hit(enemy,100,'fire');p.reflect=3;log('빛 투사 — 반
 if(idx===2){p.cd[2]=30;hit(enemy,100+2*p.g,'fire');log('태양 파동');}
 }
 }
-function update(dt){if(!running)return;for(let p of [a,b]){p.cd=p.cd.map(v=>Math.max(0,v-dt));p.reflect=Math.max(0,p.reflect-dt);p.g+=dt;if(p.slow>0)p.slow=Math.max(0,p.slow-dt);if(p.vulnerable>0)p.vulnerable=Math.max(0,p.vulnerable-dt);let sp=6*(p.slow>0?.2:1);p.x+=p.vx*dt*sp/6;p.y+=p.vy*dt*sp/6;reflect(p);}
+function update(dt){if(!running)return;skillLock=Math.max(0,skillLock-dt);for(let p of [a,b]){p.cd=p.cd.map(v=>Math.max(0,v-dt));p.reflect=Math.max(0,p.reflect-dt);p.g+=dt;if(p.slow>0)p.slow=Math.max(0,p.slow-dt);if(p.vulnerable>0)p.vulnerable=Math.max(0,p.vulnerable-dt);let sp=6*(p.slow>0?.2:1);p.x+=p.vx*dt*sp/6;p.y+=p.vy*dt*sp/6;reflect(p);}
 let d=dist(a,b);if(d<1){let nx=(b.x-a.x)/(d||1),ny=(b.y-a.y)/(d||1);let dot=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(dot>0){a.vx-=dot*nx;b.vx+=dot*nx;a.vy-=dot*ny;b.vy+=dot*ny;}a.x-=nx*.02;b.x+=nx*.02;a.y-=ny*.02;b.y+=ny*.02;}
 if(a.volley>0){a.volley=Math.max(0,a.volley-dt);a.shot=(a.shot||0)+dt;if(a.shot>=.2){a.shot=0;let ang=Math.atan2(b.y-a.y,b.x-a.x)+(Math.random()-.5)*.087;shots.push({x:a.x,y:a.y,vx:Math.cos(ang)*30,vy:Math.sin(ang)*30,t:1.2,owner:a,target:b,damage:25});fx.push({x:a.x,y:a.y,t:.18,kind:'muzzle'});}}
 for(let s of shots){s.x+=s.vx*dt;s.y+=s.vy*dt;s.t-=dt;if(s.t<=0||s.x<0||s.x>10||s.y<0||s.y>10)s.dead=true;else if(dist({x:s.x,y:s.y},s.target)<.22){hit(s.target,s.damage);s.dead=true;}}shots=shots.filter(s=>!s.dead);
-if(a.cd[0]===0&&a.volley===0)skill(a,b,0);if(dist(a,b)<=1&&a.cd[1]===0)skill(a,b,1);if(a.cd[2]===0)skill(a,b,2);if(a.cd[3]===0)skill(a,b,3);if(a.cd[4]===0)skill(a,b,4);
-if(b.cd[0]===0&&d<=3)skill(b,a,0);if(b.cd[1]===0)skill(b,a,1);if(b.cd[2]===0)skill(b,a,2);
+if(skillLock<=0){if(a.cd[0]===0&&a.volley===0)skill(a,b,0);if(dist(a,b)<=1&&a.cd[1]===0)skill(a,b,1);if(a.cd[2]===0)skill(a,b,2);if(a.cd[3]===0)skill(a,b,3);if(a.cd[4]===0)skill(a,b,4);
+if(b.cd[0]===0&&d<=3)skill(b,a,0);if(b.cd[1]===0)skill(b,a,1);if(b.cd[2]===0)skill(b,a,2);}
 fx=fx.filter(f=>(f.t-=dt)>0);flashT=Math.max(0,flashT-dt);hud();}
 function draw(){ctx.clearRect(0,0,W,W);ctx.fillStyle='#080d18';ctx.fillRect(0,0,W,W);ctx.strokeStyle='#1a2a42';ctx.lineWidth=1;for(let i=0;i<=10;i++){ctx.beginPath();ctx.moveTo(i*T,0);ctx.lineTo(i*T,W);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*T);ctx.lineTo(W,i*T);ctx.stroke();}
 for(let s of shots){ctx.save();ctx.fillStyle='#fff4a3';ctx.shadowColor='#ffe76b';ctx.shadowBlur=24;ctx.beginPath();ctx.arc(s.x*T,s.y*T,7,0,Math.PI*2);ctx.fill();ctx.restore();}
@@ -51,7 +51,7 @@ for(let p of [a,b]){let x=p.x*T,y=p.y*T;ctx.save();ctx.shadowColor=p.glow;ctx.sh
 if(flashT>0){ctx.fillStyle='rgba(255,255,255,'+(flashT*1.5)+')';ctx.fillRect(0,0,W,W)}}
 function hud(){for(let [p,i] of [[a,1],[b,2]]){document.getElementById('n'+i).textContent=p.name;document.getElementById('h'+i).style.width=(p.hp/p.max*100)+'%';document.getElementById('hp'+i).textContent='HP '+Math.ceil(p.hp)+' / '+p.max+(p.reflect>0?' · 반사':'');}document.getElementById('skills').innerHTML=(a.id==='frang'?a.skills:b.skills).map((s,i)=>'<div class="skill"><span>'+s[0]+'</span><b>'+((a.cd[i]||b.cd[i])>0?Math.ceil(a.cd[i]||b.cd[i])+'s':'READY')+'</b></div>').join('');}
 function loop(t){let dt=Math.min(.04,(t-last)/1000||0);last=t;update(dt);draw();raf=requestAnimationFrame(loop)}
-document.getElementById('start').onclick=()=>{if(matchOver)reset();running=true;document.getElementById('flash').textContent='전투 진행 중';last=performance.now();if(!raf)raf=requestAnimationFrame(loop);beep(700)};
+document.getElementById('start').onclick=()=>{if(running)return;if(matchOver)reset();for(let p of [a,b])p.cd=p.id==='frang'?[10,3,15,20,80]:[3,10,30,0,0];skillLock=5;running=true;document.getElementById('flash').textContent='전투 진행 중';last=performance.now();if(!raf)raf=requestAnimationFrame(loop);beep(700)};
 document.getElementById('pause').onclick=()=>{running=!running;document.getElementById('flash').textContent=running?'전투 진행 중':'일시정지';};
 document.getElementById('reset').onclick=reset;
 document.getElementById('sound').onclick=e=>{sound=!sound;e.target.textContent='효과음: '+(sound?'켜짐':'꺼짐')};
