@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>볼파이트</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#070b16;color:#edf4ff;font:15px system-ui,sans-serif}button{cursor:pointer;border:1px solid #334564;background:#131d32;color:#eaf2ff;border-radius:10px;padding:10px 14px;font-weight:700}button:hover{border-color:#75d9ff;background:#1a2944}.wrap{max-width:1040px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.brand{font-size:24px;font-weight:900;letter-spacing:2px;color:#8ce7ff}.arena{position:relative;margin:14px auto;border:1px solid #28405f;border-radius:16px;overflow:hidden;box-shadow:0 0 35px #1d77b522;max-width:800px}.arena canvas{display:block;width:100%;height:auto;background:#050914}.hud{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:#0d1526;border:1px solid #20324d;border-radius:12px;padding:12px;margin:10px auto;max-width:800px}.bar{height:9px;background:#243047;border-radius:20px;overflow:hidden;margin-top:5px;width:220px}.fill{height:100%;background:linear-gradient(90deg,#55e8ff,#8b7dff)}.controls{color:#9aabc6;font-size:12px}.overlay{position:fixed;inset:0;background:#02050bdc;display:none;align-items:center;justify-content:center;padding:18px;z-index:10}.panel{width:min(900px,100%);max-height:90vh;overflow:auto;background:#0c1425;border:1px solid #3b5278;border-radius:18px;padding:18px;box-shadow:0 20px 70px #000}.panelhead{display:flex;justify-content:space-between;align-items:center;gap:10px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:14px}.char{border:1px solid #2b3d5b;background:#111d32;border-radius:12px;padding:12px;text-align:left}.char.selected{border-color:#75dfff;box-shadow:0 0 16px #47cfff22}.orb{width:38px;height:38px;border-radius:50%;margin-bottom:8px;box-shadow:0 0 20px currentColor;background:radial-gradient(circle at 30% 25%,#fff 0%,currentColor 30%,#121a2d 78%)}.muted{color:#94a6c4}.detail{margin-top:14px;padding:14px;background:#101b30;border-radius:12px;line-height:1.65}.detail h3{margin:0 0 8px}.actions{display:flex;gap:8px;flex-wrap:wrap}.tag{display:inline-block;padding:3px 8px;border-radius:20px;background:#172a43;color:#8fe5ff;font-size:12px;margin-right:5px}
+</style>
+</head>
+<body><div class="wrap">
+<header class="top"><div class="brand">BALL FIGHT <span class="muted" style="font-size:12px">v0.1.0</span></div><div class="actions"><button id="codexBtn">캐릭터 도감</button><button id="resetBtn">경기 재시작</button></div></header>
+<div class="hud"><div><b>프랑</b><div class="bar"><div class="fill" id="hp1" style="width:100%"></div></div><small id="hpText1">HP 2000 / 2000</small></div><div style="text-align:center"><b id="state">전투 진행 중</b><div class="controls">WASD 이동 · 자동 공격 · 도감은 전투 중 열람 가능</div></div><div style="text-align:right"><b>훈련 상대</b><div class="bar"><div class="fill" id="hp2" style="width:100%;background:linear-gradient(90deg,#ff7d9c,#ffbd70)"></div></div><small id="hpText2">HP 2000 / 2000</small></div></div>
+<div class="arena"><canvas id="game" width="800" height="800"></canvas></div>
+<div class="hud controls">10×10 경기장 · 공 크기 1칸 · 기본 이동속도 6칸/초 · 캐릭터 충돌 시 밀려남</div>
+</div>
+<div class="overlay" id="overlay"><div class="panel"><div class="panelhead"><div><h2 style="margin:0">캐릭터 도감</h2><div class="muted">캐릭터를 선택하면 전투 능력과 기술 정보를 확인할 수 있어.</div></div><button id="closeBtn">닫기 ✕</button></div><div class="cards" id="cards"></div><div class="detail" id="detail"></div></div></div>
+<script>
+const roster=[
+{name:"프랑",hp:2000,color:"#ffe8a0",role:"광선·자연재해 마법사",basic:"광탄: 10초 주기. 3초 동안 0.2초마다 발사, 탄환당 25 피해. 지팡이 휘두르기: 적이 1칸 안에 오면 50 피해 및 넉백.",skills:["광선 (15초): 확정 명중, 250 피해.","자연 재해 (20초): 폭풍·메테오·지진 중 무작위 발동. 메테오는 3초 동안 0.3초마다 낙하, 각 250 피해.","아마겟돈 (80초): 전장 전체에 2500 피해."]},
+{name:"아크 셸",hp:2500,color:"#ff9b53",role:"태양의 수호자",basic:"화염 휩쓸기와 빛 투사로 근거리·원거리 압박.",skills:["화염 휩쓸기: 3초 충전, 근처 적에게 연속 피해.","빛 투사: 빠른 직선 화염 공격 후 반사 효과.","태양 파동: 충전 후 넓은 범위 폭발."]},
+{name:"제너럴 K",hp:2500,color:"#a7b7ff",role:"영혼의 전사",basic:"영혼 베기와 영혼 사슬로 적을 압박.",skills:["영혼 베기: 전방 근접 2연타.","영혼 사슬: 적을 끌어당기고 추가 피해.","영혼 절멸자: 강화 상태에서 연속 베기와 오라."]},
+{name:"하루나",hp:1500,color:"#ff7ca8",role:"저격·포격",basic:"권총 사격과 표식 공격.",skills:["TOT: 지연 폭발 포격.","저격 포탑: 자동 사격 지원.","계산된 폭격: 넓은 지역에 폭탄 투하."]},
+{name:"팽부지",hp:3500,color:"#b5ff83",role:"거대화 돌격형",basic:"체력이 줄어들수록 이동속도가 증가.",skills:["거대한 몸집으로 전장을 압박.","체력 구간에 따라 속도 강화."]},
+{name:"삼각 위협 군",hp:1500,color:"#ffcf6e",role:"전술 부대",basic:"전술 투척과 벙커 버스터를 사용.",skills:["최대 2회 부활.","전술 투척.","벙커 버스터."]},
+{name:"라스카리스",hp:1500,color:"#82fff0",role:"반사·기동형",basic:"빠른 이동과 반사 비행.",skills:["기동 패시브.","반사 비행."]},
+{name:"모터(엔진)",hp:2500,color:"#ff8d75",role:"엔진 특화",basic:"엔진 피해 감소 및 엔진 대상 추가 피해.",skills:["엔진 상성 패시브."]},
+{name:"이유찬",hp:2000,color:"#e8efff",role:"발도 검사",basic:"일반 이동 대신 발도 대시로 공격.",skills:["카타나 대시 공격."]},
+{name:"클라이벳",hp:1500,color:"#c39cff",role:"검 스택 전투형",basic:"0.5초마다 검 스택 획득. 피해량의 25%만큼 보호막 획득, 처치 시 보호막 500.",skills:["반경 3칸 스택 소모 공격(스택×6 피해).","스킬 1은 HP 25 소모."]}
+];
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');let p1,p2,shots=[],effects=[],last=0,keys={},running=true;
+function reset(){p1={x:220,y:400,vx:130,vy:95,hp:2000,max:2000,c:roster[0].color};p2={x:580,y:400,vx:-115,vy:-100,hp:2000,max:2000,c:"#ff799b"};shots=[];effects=[];running=true;document.getElementById('state').textContent="전투 진행 중";}
+reset();
+function hit(target,amount,label,color){if(!running)return;target.hp=Math.max(0,target.hp-amount);effects.push({x:target.x,y:target.y,t:.65,text:"-"+amount+" "+label,color});if(target.hp<=0){running=false;document.getElementById('state').textContent=target===p1?"프랑 패배":"승리!";}}
+function fire(a,b){let ang=Math.atan2(b.y-a.y,b.x-a.x);shots.push({x:a.x,y:a.y,vx:Math.cos(ang)*300,vy:Math.sin(ang)*300,t:2,owner:a});}
+function ball(x,y,r,c){let g=ctx.createRadialGradient(x-r*.35,y-r*.4,2,x,y,r);g.addColorStop(0,"#ffffff");g.addColorStop(.18,c);g.addColorStop(1,"#11182a");ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.strokeStyle=c;ctx.globalAlpha=.5;ctx.lineWidth=3;ctx.stroke();ctx.globalAlpha=1;}
+function draw(dt){ctx.clearRect(0,0,800,800);ctx.strokeStyle="#17243a";ctx.lineWidth=1;for(let i=0;i<=10;i++){ctx.beginPath();ctx.moveTo(i*80,0);ctx.lineTo(i*80,800);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*80);ctx.lineTo(800,i*80);ctx.stroke();}
+ctx.strokeStyle="#294866";ctx.lineWidth=3;ctx.strokeRect(2,2,796,796);
+if(running){if(keys.w||keys.ArrowUp)p1.vy-=260*dt;if(keys.s||keys.ArrowDown)p1.vy+=260*dt;if(keys.a||keys.ArrowLeft)p1.vx-=260*dt;if(keys.d||keys.ArrowRight)p1.vx+=260*dt;let sp=Math.hypot(p1.vx,p1.vy);if(sp>480){p1.vx=p1.vx/sp*480;p1.vy=p1.vy/sp*480;}p1.x+=p1.vx*dt;p1.y+=p1.vy*dt;p2.x+=p2.vx*dt;p2.y+=p2.vy*dt;
+for(let a of [p1,p2]){if(a.x<40||a.x>760){a.vx*=-1;a.x=Math.max(40,Math.min(760,a.x));}if(a.y<40||a.y>760){a.vy*=-1;a.y=Math.max(40,Math.min(760,a.y));}}
+if(Math.random()<dt*.9)fire(p1,p2);if(Math.random()<dt*.7)fire(p2,p1);
+let dx=p2.x-p1.x,dy=p2.y-p1.y,d=Math.hypot(dx,dy);if(d<80){let nx=dx/(d||1),ny=dy/(d||1);p1.x-=nx*2;p1.y-=ny*2;p2.x+=nx*2;p2.y+=ny*2;}
+}
+for(let s of shots){s.x+=s.vx*dt;s.y+=s.vy*dt;s.t-=dt;let tar=s.owner===p1?p2:p1;if(Math.hypot(s.x-tar.x,s.y-tar.y)<27&&s.t>0){hit(tar,25,"광탄",s.owner.c);s.t=0;}ctx.fillStyle=s.owner.c;ctx.shadowColor=s.owner.c;ctx.shadowBlur=15;ctx.beginPath();ctx.arc(s.x,s.y,5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}shots=shots.filter(s=>s.t>0&&s.x>0&&s.x<800&&s.y>0&&s.y<800);
+ball(p1.x,p1.y,26,p1.c);ball(p2.x,p2.y,26,p2.c);
+effects.forEach(e=>{e.t-=dt;ctx.globalAlpha=Math.max(0,e.t/.65);ctx.fillStyle=e.color;ctx.font="bold 18px system-ui";ctx.textAlign="center";ctx.fillText(e.text,e.x,e.y-35+(0.65-e.t)*30);ctx.globalAlpha=1;});effects=effects.filter(e=>e.t>0);
+document.getElementById('hp1').style.width=(p1.hp/p1.max*100)+"%";document.getElementById('hp2').style.width=(p2.hp/p2.max*100)+"%";document.getElementById('hpText1').textContent="HP "+p1.hp+" / "+p1.max;document.getElementById('hpText2').textContent="HP "+p2.hp+" / "+p2.max;
+}
+function loop(t){let dt=Math.min(.04,(t-last)/1000||0);last=t;draw(dt);requestAnimationFrame(loop)}requestAnimationFrame(loop);
+window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;keys[e.key]=true;if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key))e.preventDefault();});window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;keys[e.key]=false;});
+const overlay=document.getElementById('overlay'),cards=document.getElementById('cards'),detail=document.getElementById('detail');let selected=0;
+function showChar(i){selected=i;cards.innerHTML=roster.map((c,n)=>'<button class="char '+(n===i?'selected':'')+'" data-i="'+n+'"><div class="orb" style="color:'+c.color+'"></div><b>'+c.name+'</b><div class="muted">'+c.hp+' HP</div><div class="muted">'+c.role+'</div></button>').join('');detail.innerHTML='<h3>'+roster[i].name+' <span class="tag">'+roster[i].role+'</span></h3><p><b>체력</b>　'+roster[i].hp+'</p><p><b>기본 공격</b><br>'+roster[i].basic+'</p><p><b>스킬</b><br>'+roster[i].skills.map(x=>'• '+x).join('<br>')+'</p><p class="muted">※ 도감 설명은 캐릭터 설정 기준이며, 현재 플레이 가능한 훈련 전투는 프랑으로 구성되어 있어.</p>';cards.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>showChar(+b.dataset.i));}
+document.getElementById('codexBtn').onclick=()=>{showChar(selected);overlay.style.display='flex';};document.getElementById('closeBtn').onclick=()=>overlay.style.display='none';overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.style.display='none';});document.getElementById('resetBtn').onclick=reset;
+</script></body></html>
