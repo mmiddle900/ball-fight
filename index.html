@@ -39,7 +39,8 @@ if(idx===2){p.cd[2]=30;hit(enemy,100+2*p.g,'fire');log('태양 파동');}
 }
 function update(dt){if(!running)return;for(let p of [a,b]){p.cd=p.cd.map(v=>Math.max(0,v-dt));p.reflect=Math.max(0,p.reflect-dt);p.g+=dt;if(p.slow>0)p.slow=Math.max(0,p.slow-dt);if(p.vulnerable>0)p.vulnerable=Math.max(0,p.vulnerable-dt);let sp=6*(p.slow>0?.2:1);p.x+=p.vx*dt*sp/6;p.y+=p.vy*dt*sp/6;reflect(p);}
 let d=dist(a,b);if(d<1){let nx=(b.x-a.x)/(d||1),ny=(b.y-a.y)/(d||1);let dot=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(dot>0){a.vx-=dot*nx;b.vx+=dot*nx;a.vy-=dot*ny;b.vy+=dot*ny;}a.x-=nx*.02;b.x+=nx*.02;a.y-=ny*.02;b.y+=ny*.02;}
-if(a.volley>0){a.volley=Math.max(0,a.volley-dt);a.shot=(a.shot||0)+dt;if(a.shot>=.2){a.shot=0;let ang=Math.atan2(b.y-a.y,b.x-a.x)+(Math.random()-.5)*.087;shots.push({x:a.x,y:a.y,vx:Math.cos(ang)*30,vy:Math.sin(ang)*30,t:1.2,owner:a,target:b,damage:25});fx.push({x:a.x,y:a.y,t:.18,kind:'muzzle'});}}\nfor(let s of shots){s.x+=s.vx*dt;s.y+=s.vy*dt;s.t-=dt;if(s.t<=0||s.x<0||s.x>10||s.y<0||s.y>10)s.dead=true;else if(dist({x:s.x,y:s.y},s.target)<.22){hit(s.target,s.damage);s.dead=true;}}shots=shots.filter(s=>!s.dead);
+if(a.volley>0){a.volley=Math.max(0,a.volley-dt);a.shot=(a.shot||0)+dt;if(a.shot>=.2){a.shot=0;let ang=Math.atan2(b.y-a.y,b.x-a.x)+(Math.random()-.5)*.087;shots.push({x:a.x,y:a.y,vx:Math.cos(ang)*30,vy:Math.sin(ang)*30,t:1.2,owner:a,target:b,damage:25});fx.push({x:a.x,y:a.y,t:.18,kind:'muzzle'});}}
+for(let s of shots){s.x+=s.vx*dt;s.y+=s.vy*dt;s.t-=dt;if(s.t<=0||s.x<0||s.x>10||s.y<0||s.y>10)s.dead=true;else if(dist({x:s.x,y:s.y},s.target)<.22){hit(s.target,s.damage);s.dead=true;}}shots=shots.filter(s=>!s.dead);
 if(a.cd[0]===0&&a.volley===0)skill(a,b,0);if(dist(a,b)<=1&&a.cd[1]===0)skill(a,b,1);if(a.cd[2]===0)skill(a,b,2);if(a.cd[3]===0)skill(a,b,3);if(a.cd[4]===0)skill(a,b,4);
 if(b.cd[0]===0&&d<=3)skill(b,a,0);if(b.cd[1]===0)skill(b,a,1);if(b.cd[2]===0)skill(b,a,2);
 fx=fx.filter(f=>(f.t-=dt)>0);flashT=Math.max(0,flashT-dt);hud();}
