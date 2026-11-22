@@ -14,7 +14,6 @@ const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),W=700,T
 let raf=0,last=0,running=false,sound=true,flashT=0,fx=[],shots=[],logs=[],matchOver=false;
 const defs={
 frang:{name:'프랑',hp:2000,color:'#64eaff',glow:'#bdf8ff',basic:'광탄 연사',skills:[['광탄 연사','10초 재사용 대기시간. 0.2초마다 3초간 광탄을 발사한다. 광탄은 25 피해, 초당 30칸 이동.'],['지팡이 휘두르기','3초 쿨타임. 사거리 1칸 안의 적에게 50 피해와 넉백.'],['광선','15초 쿨타임. 반드시 적중하는 백색 광선, 250 피해.'],['자연 재해','20초 쿨타임. 폭풍/메테오/지진 중 하나를 무작위 사용.'],['아마겟돈','80초 쿨타임. 전장 전체에 2500 피해.']]},
-}
 };
 function make(id,x,y){const initialCD=[10,3,15,20,80];return {id,...defs[id],x,y,vx:(Math.random()<.5?-1:1)*6,vy:(Math.random()<.5?-1:1)*6,hp:defs[id].hp,max:defs[id].hp,g:0,cd:[...initialCD],phase:0,volley:0,reflect:0,dead:false};}
 let a,b;
