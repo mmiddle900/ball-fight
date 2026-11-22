@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BALL FIGHT — reconstruction</title>
+<style>
+:root{color-scheme:dark;--bg:#080b14;--panel:#111827;--line:#26334a;--cyan:#63eaff;--gold:#ffd36e;--red:#ff617a}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#17243c,#080b14 65%);color:#eaf4ff;font:14px system-ui,sans-serif}button,select{background:#17253b;color:#eaf4ff;border:1px solid #334a68;border-radius:8px;padding:10px 13px;cursor:pointer}button:hover{border-color:var(--cyan)}.wrap{max-width:1100px;margin:auto;padding:18px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.logo{font-weight:900;letter-spacing:3px;color:var(--cyan);font-size:22px}.layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;margin-top:16px}.panel{background:linear-gradient(145deg,#111a2a,#0b111e);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 12px 30px #0005}.arenaWrap{position:relative;width:100%;aspect-ratio:1;max-width:700px;margin:auto}.arena{width:100%;height:100%;display:block;border-radius:12px;background:#080d18}.hud{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}.name{font-weight:800;font-size:17px}.bar{height:12px;background:#263144;border-radius:20px;overflow:hidden;margin:6px 0}.fill{height:100%;transition:width .12s}.skills{display:grid;gap:8px;margin-top:12px}.skill{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:8px;background:#0b1220;border:1px solid #24334a;border-radius:8px}.muted{color:#91a6c3;font-size:12px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.codex{display:none;margin-top:14px}.codex.show{display:block}.codexGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.entry{padding:12px;border:1px solid #26334a;border-radius:10px;background:#0b1220}.entry h3{margin:0 0 8px;color:var(--gold)}.log{height:130px;overflow:auto;font-size:12px;color:#b9cce5;background:#080e18;border-radius:8px;padding:10px;margin-top:12px}.flash{color:var(--gold);font-weight:800;min-height:22px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.notice{color:#91a6c3;line-height:1.5}@media(max-width:800px){.layout{grid-template-columns:1fr}.arenaWrap{max-width:100%}}
+</style>
+<div class="wrap"><div class="head"><div><div class="logo">BALL FIGHT <small style="font-size:11px;color:#8fa9c8">REBUILD 2.3-R1</small></div><div class="muted">10×10 arena · constant 6 tiles/s · auto battle</div></div><div class="controls"><button id="start">전투 시작</button><button id="pause">일시정지</button><button id="codexBtn">캐릭터 도감</button></div></div>
+<div class="layout"><main class="panel"><div class="hud"><div><div class="name" id="n1">프랑</div><div class="bar"><div class="fill" id="h1" style="background:#68e8ff;width:100%"></div></div><div class="muted" id="hp1">HP 2000 / 2000</div></div><div><div class="name" id="n2">아크 셸</div><div class="bar"><div class="fill" id="h2" style="background:#ffb85c;width:100%"></div></div><div class="muted" id="hp2">HP 2500 / 2500</div></div></div>
+<div class="arenaWrap"><canvas class="arena" id="game" width="700" height="700"></canvas></div><div class="flash" id="flash"></div><div class="controls"><button id="reset">재경기</button><button id="sound">효과음: 켜짐</button><span class="muted">스킬은 쿨타임이 0일 때만 발동합니다.</span></div><div class="log" id="log"></div></main>
+<aside class="panel"><h3 style="margin-top:0;color:var(--cyan)">전투 정보</h3><p class="notice">볼은 일정 속도로 이동하며 벽과 상대에 반사됩니다. 기술 준비 중에는 쿨타임을 소모하지 않고, 쿨타임 종료 후에만 자동 발동합니다.</p><div class="skills" id="skills"></div><div class="tabs"><button id="frang">프랑</button><button id="ark">아크 셸</button></div><p class="muted">캐릭터 선택은 양측 프랑 / 아크 셸 테스트 구성입니다. 도감에서 스킬 사양을 확인할 수 있습니다.</p></aside></div>
+<section class="panel codex" id="codex"><h2 style="color:var(--gold)">캐릭터 도감</h2><div class="codexGrid" id="entries"></div></section></div>
+<script>
+(()=>{
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),W=700,T=70;
+let raf=0,last=0,running=false,sound=true,flashT=0,fx=[],logs=[],matchOver=false;
+const defs={
+frang:{name:'프랑',hp:2000,color:'#64eaff',glow:'#bdf8ff',basic:'광탄 연사',skills:[['광탄 연사','10초 재사용 대기시간. 0.2초마다 3초간 광탄을 발사한다. 광탄은 25 피해, 초당 30칸 이동.'],['지팡이 휘두르기','3초 쿨타임. 사거리 1칸 안의 적에게 50 피해와 넉백.'],['광선','15초 쿨타임. 반드시 적중하는 백색 광선, 250 피해.'],['자연 재해','20초 쿨타임. 폭풍/메테오/지진 중 하나를 무작위 사용.'],['아마겟돈','80초 쿨타임. 전장 전체에 2500 피해.']]},
+ark:{name:'아크 셸',hp:2500,color:'#ffb65d',glow:'#ffe5a8',skills:[['화염 휩쓸기','3초 준비. 반경 3칸 안의 적에게 G 피해를 3회 입힌다.'],['빛 투사','10초 쿨타임. 최대 15칸, 타일당 0.05초. 사용 후 3초 반사.'],['태양 파동','30초 쿨타임. 이동하며 3초 충전, 반경 5칸에 100+2×G 피해.'],['태양신','G≥60일 때 변신: 쿨타임 절반, G 2배, 초당 회복 2.']]}
+};
+function make(id,x,y){return {id,...defs[id],x,y,vx:(Math.random()<.5?-1:1)*6,vy:(Math.random()<.5?-1:1)*6,hp:defs[id].hp,max:defs[id].hp,g:0,cd:[0,0,0,0],phase:0,volley:0,reflect:0,dead:false};}
+let a,b;
+function reset(){a=make('frang',2.5,5);b=make('ark',7.5,5);running=false;matchOver=false;fx=[];flashT=0;logs=[];document.getElementById('flash').textContent='준비 완료';draw();hud();log('전투 준비. 전투 시작을 누르세요.');}
+function log(s){logs.unshift(s);logs=logs.slice(0,8);document.getElementById('log').innerHTML=logs.map(x=>'› '+x).join('<br>');}
+function beep(freq=500,d=.08){if(!sound)return;try{let ac=beep.ac||(beep.ac=new (window.AudioContext||window.webkitAudioContext)()),o=ac.createOscillator(),g=ac.createGain();o.frequency.value=freq;o.type='triangle';g.gain.setValueAtTime(.05,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch{}}
+function hit(target,damage,kind='hit'){if(target.dead)return;let real=target.reflect>0?0:damage;target.hp=Math.max(0,target.hp-real);fx.push({x:target.x,y:target.y,t:.45,kind,txt:real?'-'+Math.round(real):'반사'});flashT=.12;beep(kind==='beam'?900:350,.07);if(target.hp<=0){target.dead=true;running=false;matchOver=true;document.getElementById('flash').textContent=(target===a?b.name:a.name)+' 승리';log((target===a?b.name:a.name)+' 승리!');}}
+function dist(p,q){return Math.hypot(p.x-q.x,p.y-q.y)}
+function reflect(p){if(p.x<.5){p.x=.5;p.vx=Math.abs(p.vx)}if(p.x>9.5){p.x=9.5;p.vx=-Math.abs(p.vx)}if(p.y<.5){p.y=.5;p.vy=Math.abs(p.vy)}if(p.y>9.5){p.y=9.5;p.vy=-Math.abs(p.vy)}}
+function skill(p,enemy,idx){if(p.cd[idx]>0)return;let d=dist(p,enemy);
+if(p.id==='frang'){
+if(idx===0){p.volley=3;p.cd[0]=10;log('프랑: 광탄 연사');beep(650)}
+if(idx===1&&d<=1){p.cd[1]=3;hit(enemy,50);enemy.x+=Math.sign(enemy.x-p.x)*.4;log('지팡이 휘두르기');}
+if(idx===2){p.cd[2]=15;fx.push({x:p.x,y:p.y,t:.3,kind:'beam',to:{x:enemy.x,y:enemy.y}});hit(enemy,250,'beam');log('광선 — 확정 적중');}
+if(idx===3){p.cd[3]=20;let r=Math.random();if(r<.34){fx.push({x:5,y:5,t:8,kind:'storm'});let dx=5-enemy.x,dy=5-enemy.y;enemy.vx+=Math.sign(dx)*3;enemy.vy+=Math.sign(dy)*3;hit(enemy,50);log('자연 재해: 폭풍')}else if(r<.67){for(let k=0;k<3;k++)fx.push({x:Math.random()*8+1,y:Math.random()*8+1,t:1.3,kind:'meteor'});hit(enemy,250);log('자연 재해: 메테오 — 250 피해')}else{enemy.slow=8;enemy.vulnerable=8;log('자연 재해: 지진 — 8초 둔화, 받는 피해 +75%');}}
+if(idx===4){p.cd[4]=80;hit(enemy,2500,'beam');log('아마겟돈');}
+}else{
+if(idx===0&&d<=3){p.cd[0]=3;hit(enemy,Math.max(1,p.g), 'fire');hit(enemy,Math.max(1,p.g));hit(enemy,Math.max(1,p.g));log('화염 휩쓸기');}
+if(idx===1){p.cd[1]=10;hit(enemy,100,'fire');p.reflect=3;log('빛 투사 — 반사 3초');}
+if(idx===2){p.cd[2]=30;hit(enemy,100+2*p.g,'fire');log('태양 파동');}
+}
+}
+function update(dt){if(!running)return;for(let p of [a,b]){p.cd=p.cd.map(v=>Math.max(0,v-dt));p.reflect=Math.max(0,p.reflect-dt);p.g+=dt;if(p.slow>0)p.slow=Math.max(0,p.slow-dt);if(p.vulnerable>0)p.vulnerable=Math.max(0,p.vulnerable-dt);let sp=6*(p.slow>0?.2:1);p.x+=p.vx*dt*sp/6;p.y+=p.vy*dt*sp/6;reflect(p);}
+let d=dist(a,b);if(d<1){let nx=(b.x-a.x)/(d||1),ny=(b.y-a.y)/(d||1);let dot=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(dot>0){a.vx-=dot*nx;b.vx+=dot*nx;a.vy-=dot*ny;b.vy+=dot*ny;}a.x-=nx*.02;b.x+=nx*.02;a.y-=ny*.02;b.y+=ny*.02;}
+if(a.volley>0){a.volley=Math.max(0,a.volley-dt);a.shot=(a.shot||0)+dt;if(a.shot>=.2){a.shot=0;fx.push({x:a.x,y:a.y,t:.7,kind:'orb',to:{x:b.x,y:b.y}});hit(b,25);}}
+if(a.cd[0]===0&&a.volley===0)skill(a,b,0);if(dist(a,b)<=1&&a.cd[1]===0)skill(a,b,1);if(a.cd[2]===0)skill(a,b,2);if(a.cd[3]===0)skill(a,b,3);if(a.cd[4]===0)skill(a,b,4);
+if(b.cd[0]===0&&d<=3)skill(b,a,0);if(b.cd[1]===0)skill(b,a,1);if(b.cd[2]===0)skill(b,a,2);
+fx=fx.filter(f=>(f.t-=dt)>0);flashT=Math.max(0,flashT-dt);hud();}
+function draw(){ctx.clearRect(0,0,W,W);ctx.fillStyle='#080d18';ctx.fillRect(0,0,W,W);ctx.strokeStyle='#1a2a42';ctx.lineWidth=1;for(let i=0;i<=10;i++){ctx.beginPath();ctx.moveTo(i*T,0);ctx.lineTo(i*T,W);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*T);ctx.lineTo(W,i*T);ctx.stroke();}
+for(let f of fx){let x=f.x*T,y=f.y*T;ctx.save();ctx.globalAlpha=Math.min(1,f.t*2);if(f.kind==='beam'){ctx.strokeStyle='#fff';ctx.shadowColor='#9df';ctx.shadowBlur=28;ctx.lineWidth=18;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(f.to.x*T,f.to.y*T);ctx.stroke();ctx.lineWidth=5;ctx.strokeStyle='#fff';ctx.stroke();}else if(f.kind==='orb'){ctx.fillStyle='#fff4a3';ctx.shadowColor='#ffe76b';ctx.shadowBlur=25;ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fill();}else if(f.kind==='meteor'){ctx.strokeStyle='#ff643e';ctx.lineWidth=4;ctx.shadowColor='#ff4d26';ctx.shadowBlur=25;ctx.beginPath();ctx.arc(x,y,Math.max(8,(1.3-f.t)*75),0,Math.PI*2);ctx.stroke();}else if(f.kind==='storm'){ctx.strokeStyle='#8deaff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,Math.max(20,(8-f.t)*15),0,Math.PI*2);ctx.stroke();}else{ctx.fillStyle='#ffac57';ctx.beginPath();ctx.arc(x,y,20,0,Math.PI*2);ctx.fill();}if(f.txt){ctx.fillStyle='#fff';ctx.font='bold 20px system-ui';ctx.textAlign='center';ctx.fillText(f.txt,x,y-28)}ctx.restore();}
+for(let p of [a,b]){let x=p.x*T,y=p.y*T;ctx.save();ctx.shadowColor=p.glow;ctx.shadowBlur=28;let grad=ctx.createRadialGradient(x-10,y-12,4,x,y,34);grad.addColorStop(0,'#fff');grad.addColorStop(.25,p.glow);grad.addColorStop(1,p.color);ctx.fillStyle=grad;ctx.beginPath();ctx.arc(x,y,25,0,Math.PI*2);ctx.fill();ctx.restore();ctx.strokeStyle=p.reflect>0?'#fff':p.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,31,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#eaf4ff';ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillText(p.name,x,y-42);if(p.reflect>0){ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y,36,0,Math.PI*2);ctx.stroke();}}
+if(flashT>0){ctx.fillStyle='rgba(255,255,255,'+(flashT*1.5)+')';ctx.fillRect(0,0,W,W)}}
+function hud(){for(let [p,i] of [[a,1],[b,2]]){document.getElementById('n'+i).textContent=p.name;document.getElementById('h'+i).style.width=(p.hp/p.max*100)+'%';document.getElementById('hp'+i).textContent='HP '+Math.ceil(p.hp)+' / '+p.max+(p.reflect>0?' · 반사':'');}document.getElementById('skills').innerHTML=(a.id==='frang'?a.skills:b.skills).map((s,i)=>'<div class="skill"><span>'+s[0]+'</span><b>'+((a.cd[i]||b.cd[i])>0?Math.ceil(a.cd[i]||b.cd[i])+'s':'READY')+'</b></div>').join('');}
+function loop(t){let dt=Math.min(.04,(t-last)/1000||0);last=t;update(dt);draw();raf=requestAnimationFrame(loop)}
+document.getElementById('start').onclick=()=>{if(matchOver)reset();running=true;document.getElementById('flash').textContent='전투 진행 중';last=performance.now();if(!raf)raf=requestAnimationFrame(loop);beep(700)};
+document.getElementById('pause').onclick=()=>{running=!running;document.getElementById('flash').textContent=running?'전투 진행 중':'일시정지';};
+document.getElementById('reset').onclick=reset;
+document.getElementById('sound').onclick=e=>{sound=!sound;e.target.textContent='효과음: '+(sound?'켜짐':'꺼짐')};
+document.getElementById('frang').onclick=()=>{a=make('frang',2.5,5);hud();};
+document.getElementById('ark').onclick=()=>{a=make('ark',2.5,5);hud();};
+document.getElementById('codexBtn').onclick=()=>document.getElementById('codex').classList.toggle('show');
+document.getElementById('entries').innerHTML=Object.values(defs).map(p=>'<article class="entry"><h3>'+p.name+' · HP '+p.hp+'</h3>'+p.skills.map(s=>'<p><b>'+s[0]+'</b><br><span class="muted">'+s[1]+'</span></p>').join('')+'</article>').join('');
+reset();raf=requestAnimationFrame(loop);
+})();
+</script></html>
